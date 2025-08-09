@@ -13,10 +13,15 @@ return new class extends Migration
     {
         Schema::create('posts', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->text('content');
+            $table->string('image_path')->nullable();
+            $table->timestamp('scheduled_at')->nullable();
+            $table->timestamp('published_at')->nullable();
+            $table->enum('status', ['published', 'queued', 'scheduled'])->default('queued');
             $table->timestamps();
         });
     }
-
     /**
      * Reverse the migrations.
      */
