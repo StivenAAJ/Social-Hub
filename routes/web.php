@@ -1,11 +1,8 @@
 <?php
 
-<<<<<<< Updated upstream
-use App\Http\Controllers\ProfileController;
+
 use App\Http\Controllers\PostController;
 use Illuminate\Foundation\Application;
-=======
->>>>>>> Stashed changes
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\ProfileController;
@@ -47,7 +44,6 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
-<<<<<<< Updated upstream
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/posts/create', [PostController::class, 'create'])->name('posts.create');
@@ -55,5 +51,4 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 require __DIR__.'/auth.php';
-=======
->>>>>>> Stashed changes
+
