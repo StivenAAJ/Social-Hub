@@ -3,48 +3,66 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Auth\LoginRequest;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Route;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class AuthenticatedSessionController extends Controller
 {
     /**
-     * Display the login view.
+     * Mostrar formulario de login
      */
     public function create(): Response
     {
         return Inertia::render('Auth/Login', [
-            'canResetPassword' => Route::has('password.request'),
+            'canResetPassword' => true,
             'status' => session('status'),
         ]);
     }
 
     /**
-     * Handle an incoming authentication request.
+     * Procesar login
      */
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(Request $request)
     {
-        $request->authenticate();
+        $request->validate([
+            'email'    => ['required', 'string', 'email'],
+            'password' => ['required', 'string'],
+        ]);
 
+        if (!Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
+            throw ValidationException::withMessages([
+                'email' => __('auth.failed'),
+            ]);
+        }
+
+        $user = Auth::user();
+
+        // Si el usuario tiene 2FA activo
+        if ($user->two_factor_enabled && $user->two_factor_secret) {
+            // Guardar en sesión que debe completar 2FA
+            session(['2fa:user:id' => $user->id, '2fa_verified' => false]);
+
+            // Redirigir al reto OTP
+            return redirect()->route('two-factor.challenge');
+        }
+
+        // Si no tiene 2FA → login normal
         $request->session()->regenerate();
-
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->intended(route('dashboard'));
     }
 
     /**
-     * Destroy an authenticated session.
+     * Logout
      */
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request)
     {
         Auth::guard('web')->logout();
 
+        $request->session()->forget(['2fa_verified', '2fa:user:id']);
         $request->session()->invalidate();
-
         $request->session()->regenerateToken();
 
         return redirect('/');

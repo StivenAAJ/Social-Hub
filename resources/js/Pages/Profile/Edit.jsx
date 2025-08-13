@@ -1,39 +1,46 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
-import DeleteUserForm from './Partials/DeleteUserForm';
-import UpdatePasswordForm from './Partials/UpdatePasswordForm';
-import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
+"use client"
+
+import { Head } from "@inertiajs/react"
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout'
+import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm'
+import UpdatePasswordForm from './Partials/UpdatePasswordForm'
+import DeleteUserForm from './Partials/DeleteUserForm'
+import TwoFactorAuthenticationForm from './Partials/TwoFactorForm' // Asegúrate de tener este archivo o componente
+import { Settings } from 'lucide-react'
 
 export default function Edit({ mustVerifyEmail, status }) {
-    return (
-        <AuthenticatedLayout
-            header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Profile
-                </h2>
-            }
-        >
-            <Head title="Profile" />
+  return (
+    <AuthenticatedLayout
+      header={
+        <div className="flex items-center space-x-2">
+          <Settings className="w-5 h-5 text-gray-600" />
+          <h2 className="text-xl font-semibold text-gray-800">Configuración del Perfil</h2>
+        </div>
+      }
+    >
+      <Head title="Profile" />
+      
 
-            <div className="py-12">
-                <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
-                        <UpdateProfileInformationForm
-                            mustVerifyEmail={mustVerifyEmail}
-                            status={status}
-                            className="max-w-xl"
-                        />
-                    </div>
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-8">
+          <TwoFactorAuthenticationForm />
+        </div>
 
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
-                        <UpdatePasswordForm className="max-w-xl" />
-                    </div>
+      <div className="space-y-8">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-8">
+          <UpdateProfileInformationForm
+            mustVerifyEmail={mustVerifyEmail}
+            status={status}
+          />
+        </div>
 
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
-                        <DeleteUserForm className="max-w-xl" />
-                    </div>
-                </div>
-            </div>
-        </AuthenticatedLayout>
-    );
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-8">
+          <UpdatePasswordForm />
+        </div>
+
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 border-red-200 p-8">
+          <DeleteUserForm />
+        </div>
+      </div>
+    </AuthenticatedLayout>
+  )
 }

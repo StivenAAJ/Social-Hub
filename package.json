@@ -23,8 +23,11 @@
         "vite": "^7.0.4"
     },
     "dependencies": {
+        "@radix-ui/react-dialog": "^1.1.14",
         "classnames": "^2.5.1",
         "lucide-react": "^0.536.0",
+        "qrcode.react": "^4.2.0",
+        "react-qr-code": "^2.0.18",
         "ziggy-js": "^2.5.3"
     }
 }

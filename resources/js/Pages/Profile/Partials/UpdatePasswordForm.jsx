@@ -1,142 +1,181 @@
-import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
-import TextInput from '@/Components/TextInput';
-import { Transition } from '@headlessui/react';
-import { useForm } from '@inertiajs/react';
-import { useRef } from 'react';
+"use client"
 
-export default function UpdatePasswordForm({ className = '' }) {
-    const passwordInput = useRef();
-    const currentPasswordInput = useRef();
+import { useState, useRef } from "react"
+import { Button } from "@/components/button"
+import TextInput from "@/components/TextInput";
+import { Label } from "@/components/label"
+import { Lock, Eye, EyeOff, CheckCircle } from 'lucide-react'
+import { useForm } from "@inertiajs/react"
 
-    const {
-        data,
-        setData,
-        errors,
-        put,
-        reset,
-        processing,
-        recentlySuccessful,
-    } = useForm({
-        current_password: '',
-        password: '',
-        password_confirmation: '',
-    });
+export default function UpdatePasswordForm({ className = "" }) {
+  const passwordInput = useRef()
+  const currentPasswordInput = useRef()
+  const [showSuccess, setShowSuccess] = useState(false)
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  })
 
-    const updatePassword = (e) => {
-        e.preventDefault();
+  const { data, setData, errors, put, reset, processing, recentlySuccessful } = useForm({
+    current_password: "",
+    password: "",
+    password_confirmation: "",
+  })
 
-        put(route('password.update'), {
-            preserveScroll: true,
-            onSuccess: () => reset(),
-            onError: (errors) => {
-                if (errors.password) {
-                    reset('password', 'password_confirmation');
-                    passwordInput.current.focus();
-                }
+  const updatePassword = (e) => {
+    e.preventDefault()
+    put(route("password.update"), {
+      preserveScroll: true,
+      onSuccess: () => {
+        reset()
+        setShowSuccess(true)
+        setTimeout(() => setShowSuccess(false), 3000)
+      },
+      onError: (errors) => {
+        if (errors.password) {
+          reset("password", "password_confirmation")
+          passwordInput.current?.focus()
+        }
+        if (errors.current_password) {
+          reset("current_password")
+          currentPasswordInput.current?.focus()
+        }
+      },
+    })
+  }
 
-                if (errors.current_password) {
-                    reset('current_password');
-                    currentPasswordInput.current.focus();
-                }
-            },
-        });
-    };
+  const togglePasswordVisibility = (field) => {
+    setShowPasswords((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }))
+  }
 
-    return (
-        <section className={className}>
-            <header>
-                <h2 className="text-lg font-medium text-gray-900">
-                    Update Password
-                </h2>
+  return (
+    <section className={className}>
+      <header>
+        <div className="flex items-start space-x-6 mb-10">
+          <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <Lock className="w-8 h-8 text-purple-600" />
+          </div>
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Actualizar Contraseña</h2>
+            <p className="text-lg text-gray-600 leading-relaxed">
+              Asegúrate de que tu cuenta esté usando una contraseña larga y aleatoria para mantenerte seguro.
+            </p>
+          </div>
+        </div>
+      </header>
 
-                <p className="mt-1 text-sm text-gray-600">
-                    Ensure your account is using a long, random password to stay
-                    secure.
-                </p>
-            </header>
+      <form onSubmit={updatePassword} className="space-y-8">
+        <div className="space-y-4">
+          <Label htmlFor="current_password" className="text-lg font-medium text-gray-700">
+            Contraseña Actual
+          </Label>
+          <div className="relative">
+            <TextInput
+              id="current_password"
+              ref={currentPasswordInput}
+              type={showPasswords.current ? "text" : "password"}
+              value={data.current_password}
+              onChange={(e) => setData("current_password", e.target.value)}
+              className="w-full px-5 py-5 pr-14 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-lg"
+              placeholder="Tu contraseña actual"
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              onClick={() => togglePasswordVisibility("current")}
+              className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              {showPasswords.current ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
+            </button>
+          </div>
+          {errors.current_password && <p className="text-lg text-red-600 mt-3">{errors.current_password}</p>}
+        </div>
 
-            <form onSubmit={updatePassword} className="mt-6 space-y-6">
-                <div>
-                    <InputLabel
-                        htmlFor="current_password"
-                        value="Current Password"
-                    />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-4">
+            <Label htmlFor="password" className="text-lg font-medium text-gray-700">
+              Nueva Contraseña
+            </Label>
+            <div className="relative">
+              <TextInput
+                id="password"
+                ref={passwordInput}
+                type={showPasswords.new ? "text" : "password"}
+                value={data.password}
+                onChange={(e) => setData("password", e.target.value)}
+                className="w-full px-5 py-5 pr-14 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-lg"
+                placeholder="Nueva contraseña"
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => togglePasswordVisibility("new")}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                {showPasswords.new ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
+              </button>
+            </div>
+            {errors.password && <p className="text-lg text-red-600 mt-3">{errors.password}</p>}
+          </div>
 
-                    <TextInput
-                        id="current_password"
-                        ref={currentPasswordInput}
-                        value={data.current_password}
-                        onChange={(e) =>
-                            setData('current_password', e.target.value)
-                        }
-                        type="password"
-                        className="mt-1 block w-full"
-                        autoComplete="current-password"
-                    />
+          <div className="space-y-4">
+            <Label htmlFor="password_confirmation" className="text-lg font-medium text-gray-700">
+              Confirmar Contraseña
+            </Label>
+            <div className="relative">
+              <TextInput
+                id="password_confirmation"
+                type={showPasswords.confirm ? "text" : "password"}
+                value={data.password_confirmation}
+                onChange={(e) => setData("password_confirmation", e.target.value)}
+                className="w-full px-5 py-5 pr-14 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-lg"
+                placeholder="Confirmar nueva contraseña"
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => togglePasswordVisibility("confirm")}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                {showPasswords.confirm ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
+              </button>
+            </div>
+            {errors.password_confirmation && (
+              <p className="text-lg text-red-600 mt-3">{errors.password_confirmation}</p>
+            )}
+          </div>
+        </div>
 
-                    <InputError
-                        message={errors.current_password}
-                        className="mt-2"
-                    />
-                </div>
+        <div className="flex items-center justify-between pt-6">
+          <div className="flex items-center space-x-3">
+            {(recentlySuccessful || showSuccess) && (
+              <div className="flex items-center space-x-3 text-green-600">
+                <CheckCircle className="w-6 h-6" />
+                <span className="text-lg font-medium">Contraseña actualizada</span>
+              </div>
+            )}
+          </div>
 
-                <div>
-                    <InputLabel htmlFor="password" value="New Password" />
-
-                    <TextInput
-                        id="password"
-                        ref={passwordInput}
-                        value={data.password}
-                        onChange={(e) => setData('password', e.target.value)}
-                        type="password"
-                        className="mt-1 block w-full"
-                        autoComplete="new-password"
-                    />
-
-                    <InputError message={errors.password} className="mt-2" />
-                </div>
-
-                <div>
-                    <InputLabel
-                        htmlFor="password_confirmation"
-                        value="Confirm Password"
-                    />
-
-                    <TextInput
-                        id="password_confirmation"
-                        value={data.password_confirmation}
-                        onChange={(e) =>
-                            setData('password_confirmation', e.target.value)
-                        }
-                        type="password"
-                        className="mt-1 block w-full"
-                        autoComplete="new-password"
-                    />
-
-                    <InputError
-                        message={errors.password_confirmation}
-                        className="mt-2"
-                    />
-                </div>
-
-                <div className="flex items-center gap-4">
-                    <PrimaryButton disabled={processing}>Save</PrimaryButton>
-
-                    <Transition
-                        show={recentlySuccessful}
-                        enter="transition ease-in-out"
-                        enterFrom="opacity-0"
-                        leave="transition ease-in-out"
-                        leaveTo="opacity-0"
-                    >
-                        <p className="text-sm text-gray-600">
-                            Saved.
-                        </p>
-                    </Transition>
-                </div>
-            </form>
-        </section>
-    );
+          <Button
+            type="submit"
+            disabled={processing}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-xl font-semibold"
+          >
+            {processing ? (
+              <div className="flex items-center space-x-3">
+                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-xl font-semibold">Actualizando...</span>
+              </div>
+            ) : (
+              "Actualizar Contraseña"
+            )}
+          </Button>
+        </div>
+      </form>
+    </section>
+  )
 }
