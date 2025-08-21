@@ -5,33 +5,31 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
 
 class Ensure2FAIsVerified
 {
-    public function handle(Request $request, Closure $next)
+    public function handle(Request $request, Closure $next): Response
     {
-        // Si el usuario no ha iniciado sesión, que siga su camino
         if (!Auth::check()) {
             return $next($request);
         }
 
-        // Ignorar si ya está verificado o no tiene 2FA activado
-        if (
-            session('2fa_verified') || 
-            !Auth::user()->two_factor_enabled
-        ) {
+        // 🔍 Log de diagnóstico 2FA
+        logger('2FA middleware: ', [
+            'user_id' => Auth::id(),
+            '2fa_enabled' => Auth::user()->two_factor_enabled,
+            '2fa_verified' => session('2fa_verified'),
+            'url' => $request->path(),
+        ]);
+
+        if (!Auth::user()->two_factor_enabled || session('2fa_verified')) {
             return $next($request);
         }
 
-        // Permitir acceder a la página de challenge sin redireccionar de nuevo
-        if (
-            $request->is('two-factor-challenge') ||
-            $request->is('two-factor-challenge/*')
-        ) {
+        if (str_starts_with($request->path(), 'two-factor-challenge')) {
             return $next($request);
         }
-
-        // Redirigir al reto de 2FA
         return redirect()->route('two-factor.challenge');
     }
 }
