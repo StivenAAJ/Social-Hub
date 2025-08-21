@@ -59,7 +59,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/posts/create', [PostController::class, 'create'])->name('posts.create');
     Route::post('/posts', [PostController::class, 'store'])->name('posts.store');
+
+    Route::get('/posts/schedule', [PostController::class, 'schedule'])->name('posts.schedule');
 });
+
+
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/auth/discord/redirect', [OAuthController::class, 'redirectToDiscord'])->name('auth.discord');

@@ -66,6 +66,10 @@ class PostController extends Controller
         return redirect()->route('dashboard')->with('success', 'Post created successfully.');
     }
 
+    public function schedule()
+    {
+        return inertia('Posts/Schedule');
+    }
 
 
     /**

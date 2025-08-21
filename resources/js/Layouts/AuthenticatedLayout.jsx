@@ -50,6 +50,14 @@ export default function AuthenticatedLayout({ header, children }) {
             >
               Crear Publicación
             </NavLink>
+
+            <NavLink
+              href="/posts/schedule"
+              active={route().current("posts.schedule")}
+              className="text-gray-600 hover:text-gray-900 transition-colors text-xl font-medium"
+            >
+              Horario de Publicacion
+            </NavLink>
           </nav>
 
           <div className="flex items-center space-x-3">
