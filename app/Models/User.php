@@ -52,6 +52,8 @@ class User extends Authenticatable
             'two_factor_enabled' => 'boolean',
             'two_factor_secret' => 'encrypted:string',
             'two_factor_recovery_codes' => 'array',
+            'discord_id',
+            'discord_token',
         ];
     }
 }

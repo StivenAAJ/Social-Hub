@@ -12,8 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->text('two_factor_secret')->nullable();
-            $table->text('two_factor_recovery_codes')->nullable();
+            $table->string('mastodon_id')->nullable()->after('id');
+            $table->string('mastodon_token')->nullable()->after('mastodon_id');
+            $table->string('mastodon_refresh_token')->nullable()->after('mastodon_token');
         });
     }
 
@@ -23,10 +24,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn([
-                'two_factor_secret',
-                'two_factor_recovery_codes'
-            ]);
+            $table->dropColumn(['mastodon_id', 'mastodon_token', 'mastodon_refresh_token']);
         });
     }
 };
