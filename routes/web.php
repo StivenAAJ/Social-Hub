@@ -59,6 +59,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/auth/discord/callback', [OAuthController::class, 'handleDiscordCallback']);
     Route::get('/auth/mastodon/redirect', [OAuthController::class, 'redirectToMastodon'])->name('auth.mastodon');
     Route::get('/auth/mastodon/callback', [OAuthController::class, 'handleMastodonCallback']);
+    Route::post('/mastodon/publish', [OAuthController::class, 'publishToMastodon'])->name('mastodon.publish');
+    Route::get('/posts', fn () => redirect()->route('posts.create'));
 });
 
 // 🔌 Desconexiones sociales

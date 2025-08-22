@@ -38,13 +38,19 @@ return [
         'client_id' => env('DISCORD_CLIENT_ID'),
         'client_secret' => env('DISCORD_CLIENT_SECRET'),
         'redirect' => env('DISCORD_REDIRECT_URI'),
+        'bot_token' => env('DISCORD_BOT_TOKEN'),
+        'channel_id' => env('DISCORD_CHANNEL_ID'),
+
+
     ],
     'mastodon' => [
-        'client_id'     => env('MASTODON_CLIENT_ID'),
+        'client_id' => env('MASTODON_CLIENT_ID'),
         'client_secret' => env('MASTODON_CLIENT_SECRET'),
-        'redirect'      => env('MASTODON_REDIRECT_URI'),
-        'instance'      => env('MASTODON_INSTANCE'), // importante
+        'redirect' => env('MASTODON_REDIRECT_URI'),
+        'instance' => env('MASTODON_INSTANCE'),
+        'access_token' => env('MASTODON_ACCESS_TOKEN'), // <-- IMPORTANTE
     ],
+
 
 
 

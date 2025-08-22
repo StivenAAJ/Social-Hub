@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Post;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+
 
 class PostController extends Controller
 {
@@ -28,10 +32,11 @@ class PostController extends Controller
             'image' => 'nullable|image|max:2048',
             'scheduled_at' => 'nullable|date',
             'publish_option' => 'required|in:immediately,queued,scheduled',
+            'platforms' => 'nullable|array',
         ]);
 
         $post = new Post();
-        $post->user_id = auth()->id();
+        $post->user_id = Auth::id();
         $post->content = $validated['content'];
 
         if ($request->hasFile('image')) {
@@ -61,10 +66,23 @@ class PostController extends Controller
                 break;
         }
 
+        $post->platforms = $validated['platforms'] ?? [];
         $post->save();
+
+        // Solo se publica de inmediato si la opción es "immediately"
+        if ($post->status === 'published') {
+            if (in_array('discord', $post->platforms)) {
+                $this->postToDiscord($post->content);
+            }
+
+            if (in_array('mastodon', $post->platforms)) {
+                $this->publishToMastodon($post->content);
+            }
+        }
 
         return redirect()->route('dashboard')->with('success', 'Post created successfully.');
     }
+
 
     public function schedule()
     {
@@ -102,5 +120,48 @@ class PostController extends Controller
     public function destroy(Post $post)
     {
         //
+    }
+
+    private function postToDiscord($content)
+    {
+        $discordToken = config('services.discord.bot_token');
+        $channelId = config('services.discord.channel_id');
+
+        $response = Http::withHeaders([
+            'Authorization' => $discordToken,
+            'Content-Type' => 'application/json',
+        ])->post("https://discord.com/api/v10/channels/{$channelId}/messages", [
+            'content' => $content,
+        ]);
+
+        if (!$response->successful()) {
+            Log::error('Discord post failed: ' . $response->body());
+        }
+
+        return $response->successful();
+    }
+
+    public function publishToMastodon(string $message)
+    {
+        $accessToken = config('services.mastodon.access_token');
+        $instanceUrl = config('services.mastodon.instance');
+
+        $response = Http::withToken($accessToken)
+            ->post("$instanceUrl/api/v1/statuses", [
+                'status' => $message,
+                'visibility' => 'public', // puedes usar 'unlisted', 'private', 'direct'
+            ]);
+
+        if ($response->successful()) {
+            return $response->json();
+        }
+
+        Log::error('Error al publicar en Mastodon', [
+            'status' => $response->status(),
+            'body' => $response->body(), // 👈 Aquí vemos la causa real
+            'headers' => $response->headers(),
+        ]);
+
+        throw new \Exception('No se pudo publicar en Mastodon');
     }
 }

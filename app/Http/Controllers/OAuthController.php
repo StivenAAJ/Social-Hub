@@ -9,6 +9,9 @@ use Laravel\Socialite\Contracts\User as SocialiteUser;
 use Laravel\Socialite\Two\DiscordProvider;
 use Illuminate\Support\Str;
 use League\OAuth2\Client\Provider\GenericProvider;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Http\Request;
+
 
 
 class OAuthController extends Controller
@@ -131,4 +134,6 @@ class OAuthController extends Controller
 
         return redirect('/dashboard')->with('success', 'Cuenta de Mastodon desconectada.');
     }
+
+    
 }
