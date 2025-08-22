@@ -69,7 +69,7 @@ class PostController extends Controller
         $post->platforms = $validated['platforms'] ?? [];
         $post->save();
 
-        // Solo se publica de inmediato si la opción es "immediately"
+        
         if ($post->status === 'published') {
             if (in_array('discord', $post->platforms)) {
                 $this->postToDiscord($post->content);
@@ -122,7 +122,7 @@ class PostController extends Controller
         //
     }
 
-    private function postToDiscord($content)
+    public function postToDiscord($content)
     {
         $discordToken = config('services.discord.bot_token');
         $channelId = config('services.discord.channel_id');
@@ -149,7 +149,7 @@ class PostController extends Controller
         $response = Http::withToken($accessToken)
             ->post("$instanceUrl/api/v1/statuses", [
                 'status' => $message,
-                'visibility' => 'public', // puedes usar 'unlisted', 'private', 'direct'
+                'visibility' => 'public', 
             ]);
 
         if ($response->successful()) {
@@ -158,7 +158,7 @@ class PostController extends Controller
 
         Log::error('Error al publicar en Mastodon', [
             'status' => $response->status(),
-            'body' => $response->body(), // 👈 Aquí vemos la causa real
+            'body' => $response->body(), 
             'headers' => $response->headers(),
         ]);
 
