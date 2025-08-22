@@ -1,28 +1,27 @@
 <?php
 
-
-use App\Http\Controllers\PostController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\TwoFactorController;
 use App\Http\Controllers\TwoFactorChallengeController;
+use App\Http\Controllers\PostController;
 use App\Http\Middleware\Ensure2FAIsVerified;
+use App\Http\Controllers\OAuthController;
 
+// Página de bienvenida pública
 Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
 
+// Rutas de autenticación (login, registro, etc.)
+require __DIR__.'/auth.php';
 
-
-// Dashboard protegido solo por autenticación y verificación de email
-Route::middleware(['auth', Ensure2FAIsVerified::class])->group(function () {
-    Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
-    })->name('dashboard');
+// 🔐 Rutas protegidas con autenticación Y verificación 2FA (dashboard, etc.)
+Route::middleware(['auth'])->group(function () {
+    Route::get('/dashboard', fn () => Inertia::render('Dashboard'))->name('dashboard');
 });
 
-// Rutas 2FA (solo usuarios autenticados)
+// ⚙️ Rutas de configuración de 2FA (solo necesitan estar autenticados)
 Route::middleware(['auth'])->group(function () {
     Route::get('/two-factor-status', [TwoFactorController::class, 'status'])->name('two-factor.status');
     Route::get('/two-factor/setup', [TwoFactorController::class, 'setup'])->name('two-factor.setup');
@@ -30,36 +29,43 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/two-factor-toggle', [TwoFactorController::class, 'toggle'])->name('two-factor.toggle');
 });
 
-Route::middleware('web')->group(function () {
-    Route::get('/two-factor-challenge', [TwoFactorChallengeController::class, 'create'])
-        ->name('two-factor.challenge');
+// 🔑 Rutas del reto 2FA (NO llevan 'auth', porque el user está deslogueado hasta ingresar OTP)
+Route::get('/two-factor-challenge', [TwoFactorChallengeController::class, 'create'])
+    ->name('two-factor.challenge');
+Route::post('/two-factor-challenge', [TwoFactorChallengeController::class, 'store'])
+    ->name('two-factor.challenge.store');
 
-    Route::post('/two-factor-challenge', [TwoFactorChallengeController::class, 'store'])
-        ->name('two-factor.challenge.store');
-});
-
-
-// Perfil protegido solo por autenticación
+// 👤 Rutas de perfil (solo autenticación)
 Route::middleware(['auth'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+// 🔗 Rutas sociales (requieren email verificado)
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/socials/connect', fn () => Inertia::render('Social/Connect'))->name('socials.connect');
+});
+
+// ✍️ Rutas de posts (requieren email verificado)
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/posts/create', [PostController::class, 'create'])->name('posts.create');
     Route::post('/posts', [PostController::class, 'store'])->name('posts.store');
+    Route::get('/posts/schedule', [PostController::class, 'schedule'])->name('posts.schedule');
 });
 
-
-Route::middleware('auth')->group(function () {
-    Route::get('/schedules', [ScheduleController::class, 'index'])->name('schedules.index');
-    Route::post('/posts/assign-schedule', [ScheduleController::class, 'assignSchedule'])->name('posts.assign-schedule');
-    Route::post('/posts/{post}/unassign', [ScheduleController::class, 'unassignPost'])->name('posts.unassign');
-    Route::post('/posts/{post}/status', [ScheduleController::class, 'updatePostStatus'])->name('posts.status');
+// 🌐 Rutas de integración con OAuth (necesitan auth excepto disconnects públicos)
+Route::middleware(['auth'])->group(function () {
+    Route::get('/auth/discord/redirect', [OAuthController::class, 'redirectToDiscord'])->name('auth.discord');
+    Route::get('/auth/discord/callback', [OAuthController::class, 'handleDiscordCallback']);
+    Route::get('/auth/mastodon/redirect', [OAuthController::class, 'redirectToMastodon'])->name('auth.mastodon');
+    Route::get('/auth/mastodon/callback', [OAuthController::class, 'handleMastodonCallback']);
+    Route::post('/mastodon/publish', [OAuthController::class, 'publishToMastodon'])->name('mastodon.publish');
+    Route::get('/posts', fn () => redirect()->route('posts.create'));
 });
 
-
-
-
-require __DIR__.'/auth.php';
+// 🔌 Desconexiones sociales
+Route::get('/auth/discord/disconnect', [OAuthController::class, 'disconnectDiscord'])->name('discord.disconnect');
+Route::get('/auth/mastodon', [OAuthController::class, 'redirectToMastodon']);
+Route::get('/auth/mastodon/callback', [OAuthController::class, 'handleMastodonCallback']);
+Route::get('/auth/mastodon/disconnect', [OAuthController::class, 'disconnectMastodon']);

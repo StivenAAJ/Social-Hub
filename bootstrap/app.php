@@ -3,6 +3,10 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Support\Facades\Schedule;
+use App\Schedule\PostScheduler;
+
+
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(

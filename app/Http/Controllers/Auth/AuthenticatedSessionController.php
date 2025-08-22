@@ -42,17 +42,19 @@ class AuthenticatedSessionController extends Controller
 
         // Si el usuario tiene 2FA activo
         if ($user->two_factor_enabled && $user->two_factor_secret) {
-            // Guardar en sesión que debe completar 2FA
-            session(['2fa:user:id' => $user->id, '2fa_verified' => false]);
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
 
-            // Redirigir al reto OTP
+            session([
+                '2fa:user:id' => $user->id,
+                '2fa_verified' => false,
+            ]);
+
             return redirect()->route('two-factor.challenge');
         }
-
-        // Si no tiene 2FA → login normal
-        $request->session()->regenerate();
-        return redirect()->intended(route('dashboard'));
     }
+
 
     /**
      * Logout
