@@ -28,12 +28,8 @@ export default function AuthenticatedLayout({ header, children }) {
                                 </Link>
                             </div>
 
-<<<<<<< Updated upstream
                             <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex ">
                                 <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-=======
-                            <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
->>>>>>> Stashed changes
                                 <NavLink href={route('dashboard')} active={route().current('dashboard')}>
                                     Dashboard
                                 </NavLink>
@@ -42,6 +38,9 @@ export default function AuthenticatedLayout({ header, children }) {
                                 </NavLink>
                                 <NavLink href="/posts/create" active={route().current('posts.create')}>
                                     Crear Publicación
+                                </NavLink>
+                                <NavLink href="/schedules" active={route().current('schedules.index')}>
+                                    Manejar Horarios
                                 </NavLink>
                             </div>
                             </div>

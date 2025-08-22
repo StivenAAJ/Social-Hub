@@ -39,7 +39,7 @@ export default function Create() {
       <form onSubmit={submit} encType="multipart/form-data" className="space-y-6">
         <div>
           <label htmlFor="content" className="block font-semibold mb-2 text-gray-700">
-            Content
+            Contenido
           </label>
           <textarea
             id="content"
@@ -57,7 +57,7 @@ export default function Create() {
 
         <div>
           <label htmlFor="image" className="block font-semibold mb-2 text-gray-700">
-            Image
+            Imagen (opcional)
           </label>
           <input
             type="file"

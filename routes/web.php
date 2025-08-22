@@ -1,21 +1,19 @@
 <?php
 
-<<<<<<< Updated upstream
-use App\Http\Controllers\ProfileController;
+
 use App\Http\Controllers\PostController;
 use Illuminate\Foundation\Application;
-=======
->>>>>>> Stashed changes
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\TwoFactorController;
 use App\Http\Controllers\TwoFactorChallengeController;
 use App\Http\Middleware\Ensure2FAIsVerified;
 
 Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
 
-require __DIR__.'/auth.php';
+
 
 // Dashboard protegido solo por autenticación y verificación de email
 Route::middleware(['auth', Ensure2FAIsVerified::class])->group(function () {
@@ -47,13 +45,21 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
-<<<<<<< Updated upstream
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/posts/create', [PostController::class, 'create'])->name('posts.create');
     Route::post('/posts', [PostController::class, 'store'])->name('posts.store');
 });
 
+
+Route::middleware('auth')->group(function () {
+    Route::get('/schedules', [ScheduleController::class, 'index'])->name('schedules.index');
+    Route::post('/posts/assign-schedule', [ScheduleController::class, 'assignSchedule'])->name('posts.assign-schedule');
+    Route::post('/posts/{post}/unassign', [ScheduleController::class, 'unassignPost'])->name('posts.unassign');
+    Route::post('/posts/{post}/status', [ScheduleController::class, 'updatePostStatus'])->name('posts.status');
+});
+
+
+
+
 require __DIR__.'/auth.php';
-=======
->>>>>>> Stashed changes
