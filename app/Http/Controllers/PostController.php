@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use App\Services\DiscordService;
 
 
 class PostController extends Controller
@@ -72,7 +73,12 @@ class PostController extends Controller
         
         if ($post->status === 'published') {
             if (in_array('discord', $post->platforms)) {
-                $this->postToDiscord($post->content);
+                $discordService = new DiscordService();
+                try {
+                    $discordService->publish(config('services.discord.channel_id'), $post->content);
+                } catch (\Exception $e) {
+                    \Log::error('Error publicando inmediatamente en Discord: ' . $e->getMessage());
+                }
             }
 
             if (in_array('mastodon', $post->platforms)) {

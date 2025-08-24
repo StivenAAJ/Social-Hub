@@ -14,11 +14,12 @@ class DiscordService
 
     public function publish($channelId, $content)
     {
-        $response = Http::withToken($this->botToken)
-            ->post("https://discord.com/api/v10/channels/{$channelId}/messages", [
-                'content' => $content,
-            ]);
-
+        $response = Http::withHeaders([
+        'Authorization' => 'Bot ' . $this->botToken,
+        ])->post("https://discord.com/api/v10/channels/{$channelId}/messages", [
+            'content' => $content, // ✅ aquí debe ir $content
+        ])
+        ->throw();
         if ($response->failed()) {
             throw new \Exception('Error al publicar en Discord: ' . $response->body());
         }

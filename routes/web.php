@@ -52,6 +52,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/posts/create', [PostController::class, 'create'])->name('posts.create');
     Route::post('/posts', [PostController::class, 'store'])->name('posts.store');
     Route::get('/posts/schedule', [PostController::class, 'schedule'])->name('posts.schedule');
+
+// 📅 Nuevas rutas de horarios de publicación automática
+Route::prefix('publishing-schedules')->name('publishing-schedules.')->group(function () {
+    Route::get('/', [ScheduleController::class, 'index'])->name('index');
+    Route::post('/', [ScheduleController::class, 'store'])->name('store');
+    Route::get('/stats', [ScheduleController::class, 'getStats'])->name('stats');
+});
+    
+// 🕐 Rutas de gestión de posts programados individuales (compatibilidad con sistema anterior)
+Route::prefix('schedules')->name('schedules.')->group(function () {
+    Route::get('/', [ScheduleController::class, 'index'])->name('index');
+    Route::post('/assign', [ScheduleController::class, 'assignSchedule'])->name('assign');
+    Route::patch('/unassign/{post}', [ScheduleController::class, 'unassignPost'])->name('unassign');
+    Route::patch('/status/{post}', [ScheduleController::class, 'updatePostStatus'])->name('updateStatus');
+    });
 });
 
 // 🌐 Rutas de integración con OAuth (necesitan auth excepto disconnects públicos)

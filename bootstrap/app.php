@@ -3,7 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Support\Facades\Schedule;
+use Illuminate\Console\Scheduling\Schedule;
 use App\Schedule\PostScheduler;
 
 
@@ -22,7 +22,19 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
     })
-    ->withExceptions(function (Exceptions $exceptions): void {
+    ->withSchedule(function (Schedule $schedule) {
+        // Ejecutar cada minuto para procesar posts programados
+        $schedule->command('posts:process-scheduled')
+                ->everyMinute()
+                ->withoutOverlapping()
+                ->runInBackground();
+                
+        // También puedes usar el Job directamente:
+        // $schedule->job(new \App\Jobs\ProcessScheduledPosts)
+        //         ->everyMinute()
+        //         ->withoutOverlapping();
+    })
+    ->withExceptions(function (Exceptions $exceptions) {
         //
     })
     ->create();

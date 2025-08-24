@@ -17,12 +17,16 @@ class Post extends Model
         'published_at',
         'status',
         'platforms',
+        'published_by_schedule',
+        'schedule_id',
+        'error_message'
     ];
 
     protected $casts = [
         'scheduled_at' => 'datetime',
         'published_at' => 'datetime',
         'platforms' => 'array',
+        'published_by_schedule' => 'boolean',
     ];
 
     /**
@@ -32,4 +36,14 @@ class Post extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    /**
+     * Relación con el horario asociado (si aplica).
+     */
+    public function schedule()
+    {
+        return $this->belongsTo(Schedule::class);
+    }
+
+
 }
