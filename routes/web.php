@@ -53,8 +53,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/posts', [PostController::class, 'store'])->name('posts.store');
     Route::get('/posts/schedule', [PostController::class, 'schedule'])->name('posts.schedule');
 
-    Route::get('/posts/history', [PostController::class, 'history'])->name('posts.history');
-    Route::get('/posts/queue', [PostController::class, 'queue'])->name('posts.queue');
+    Route::get('/posts/history', [PostController::class, 'publishedAndScheduled'])->name('posts.history');
+Route::get('/posts/queue', [PostController::class, 'queued'])->name('posts.queue');
+
 
 // 📅 Nuevas rutas de horarios de publicación automática
 Route::prefix('publishing-schedules')->name('publishing-schedules.')->group(function () {

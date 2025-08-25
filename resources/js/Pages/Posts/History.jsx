@@ -1,6 +1,6 @@
 "use client"
 import { useState } from "react"
-import { Head } from "@inertiajs/react"
+import { Head, usePage } from "@inertiajs/react"
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout"
 import {
   History,
@@ -17,108 +17,9 @@ import {
 import classNames from "classnames"
 
 export default function HistoryAndScheduled() {
-  // Datos de ejemplo para publicaciones publicadas (historial)
-  const [publishedPosts] = useState([
-    {
-      id: 1,
-      content: "¡Feliz año nuevo! 🎉 Que este 2024 esté lleno de código limpio y proyectos exitosos.",
-      platforms: ["discord", "mastodon"],
-      status: "published",
-      scheduled_for: "2024-01-01T00:00:00",
-      published_at: "2024-01-01T00:00:15",
-      created_at: "2023-12-30T15:30:00",
-      results: {
-        discord: { success: true, message: "Publicado exitosamente" },
-        mastodon: { success: true, message: "Publicado exitosamente" },
-      },
-    },
-    {
-      id: 2,
-      content: "Tutorial: Cómo configurar un entorno de desarrollo con Docker 🐳",
-      platforms: ["discord"],
-      status: "published",
-      scheduled_for: "2024-01-10T14:00:00",
-      published_at: "2024-01-10T14:00:08",
-      created_at: "2024-01-09T10:15:00",
-      results: {
-        discord: { success: true, message: "Publicado exitosamente" },
-      },
-    },
-    {
-      id: 3,
-      content: "¿Cuál es tu framework JavaScript favorito? Cuéntanos en los comentarios 💭",
-      platforms: ["mastodon"],
-      status: "published",
-      scheduled_for: "2024-01-12T16:30:00",
-      published_at: "2024-01-12T16:30:12",
-      created_at: "2024-01-11T09:45:00",
-      results: {
-        mastodon: { success: true, message: "Publicado exitosamente" },
-      },
-    },
-    {
-      id: 4,
-      content: "Recordatorio: Webinar gratuito sobre Next.js 14 📚 ¡Gracias a todos los que participaron!",
-      platforms: ["discord", "mastodon"],
-      status: "published",
-      scheduled_for: "2024-01-08T19:00:00",
-      published_at: "2024-01-08T19:00:05",
-      created_at: "2024-01-07T11:20:00",
-      results: {
-        discord: { success: true, message: "Publicado exitosamente" },
-        mastodon: { success: true, message: "Publicado exitosamente" },
-      },
-    },
-  ])
-
-  // Datos de ejemplo para publicaciones programadas (no publicadas)
-  const [scheduledPosts] = useState([
-    {
-      id: 5,
-      content: "¡Feliz viernes! 🎉 Que tengan un excelente fin de semana desarrollando proyectos increíbles.",
-      platforms: ["discord", "mastodon"],
-      status: "scheduled",
-      scheduled_for: "2024-01-19T17:00:00",
-      published_at: null,
-      created_at: "2024-01-15T09:00:00",
-    },
-    {
-      id: 6,
-      content: "Mañana lanzamos la nueva versión de nuestra API 🚀 Prepárense para las mejoras!",
-      platforms: ["discord"],
-      status: "scheduled",
-      scheduled_for: "2024-01-20T10:00:00",
-      published_at: null,
-      created_at: "2024-01-15T14:30:00",
-    },
-    {
-      id: 7,
-      content: "Workshop gratuito: Introducción a TypeScript para principiantes 📖",
-      platforms: ["mastodon"],
-      status: "scheduled",
-      scheduled_for: "2024-01-22T15:00:00",
-      published_at: null,
-      created_at: "2024-01-15T16:45:00",
-    },
-    {
-      id: 8,
-      content: "Mantenimiento programado del servidor este domingo de 2-4 AM ⚠️",
-      platforms: ["discord", "mastodon"],
-      status: "scheduled",
-      scheduled_for: "2024-01-21T02:00:00",
-      published_at: null,
-      created_at: "2024-01-15T13:20:00",
-    },
-    {
-      id: 9,
-      content: "Nuevo curso de React avanzado disponible en nuestra plataforma 🚀",
-      platforms: ["discord"],
-      status: "scheduled",
-      scheduled_for: "2024-01-25T12:00:00",
-      published_at: null,
-      created_at: "2024-01-16T08:30:00",
-    },
-  ])
+  const { props } = usePage()
+  const [publishedPosts] = useState(props.publishedPosts || [])
+  const [scheduledPosts] = useState(props.scheduledPosts || [])
 
   const formatDate = (dateString) => {
     if (!dateString) return "N/A"
@@ -251,7 +152,7 @@ export default function HistoryAndScheduled() {
                   <p className="text-2xl font-bold text-gray-900">
                     {
                       scheduledPosts.filter((post) => {
-                        const scheduled = new Date(post.scheduled_for)
+                        const scheduled = new Date(post.scheduled_at)
                         const now = new Date()
                         const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
                         return scheduled >= now && scheduled <= tomorrow
@@ -304,7 +205,9 @@ export default function HistoryAndScheduled() {
                               <p className="text-sm font-medium text-green-700">
                                 Publicada: {formatDate(post.published_at)}
                               </p>
-                              <p className="text-xs text-gray-600">Programada: {formatDate(post.scheduled_for)}</p>
+                              <p className="text-xs text-gray-600">
+                                Programada: {formatDate(post.scheduled_at)}
+                              </p>
                             </div>
                           </div>
 
@@ -343,20 +246,6 @@ export default function HistoryAndScheduled() {
                             Creada: {formatDate(post.created_at).split(" ")[1]}
                           </div>
                         </div>
-
-                        {/* Resultados por plataforma */}
-                        <div className="mt-3 pt-3 border-t border-green-200">
-                          <div className="flex flex-wrap gap-2">
-                            {Object.entries(post.results).map(([platform, result]) => (
-                              <div key={platform} className="flex items-center space-x-1 text-xs text-green-700">
-                                <CheckCircle className="w-3 h-3" />
-                                <span className="capitalize">
-                                  {platform}: {result.message}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
                       </div>
                     ))}
                 </div>
@@ -389,7 +278,7 @@ export default function HistoryAndScheduled() {
               ) : (
                 <div className="space-y-4 max-h-96 overflow-y-auto">
                   {scheduledPosts
-                    .sort((a, b) => new Date(a.scheduled_for) - new Date(b.scheduled_for))
+                    .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at))
                     .map((post) => (
                       <div
                         key={post.id}
@@ -399,8 +288,8 @@ export default function HistoryAndScheduled() {
                           <div className="flex items-center space-x-2">
                             <Calendar className="w-5 h-5 text-blue-600" />
                             <div>
-                              <p className="text-sm font-medium text-blue-700">{formatDate(post.scheduled_for)}</p>
-                              <p className="text-xs text-blue-600">{getTimeUntilScheduled(post.scheduled_for)}</p>
+                              <p className="text-sm font-medium text-blue-700">{formatDate(post.scheduled_at)}</p>
+                              <p className="text-xs text-blue-600">{getTimeUntilScheduled(post.scheduled_at)}</p>
                             </div>
                           </div>
 
@@ -475,3 +364,4 @@ export default function HistoryAndScheduled() {
     </AuthenticatedLayout>
   )
 }
+
