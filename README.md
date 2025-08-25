@@ -92,6 +92,7 @@ Abre en tu navegador: [http://localhost:8000](http://localhost:8000)
 ## 🧑‍💻 Autores
 
 * [Stiven Arguello Jimenez]()
+* [Joselyn Ojeda Vargas]()
 
 ---
 
