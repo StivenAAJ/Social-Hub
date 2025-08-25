@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Jobs\ProcessScheduledPosts;
+use App\Services\DiscordService; // Asegúrate de tener este servicio
 use Illuminate\Support\Facades\Log;
 
 class ProcessScheduledPostsCommand extends Command
@@ -15,12 +16,13 @@ class ProcessScheduledPostsCommand extends Command
     {
         $this->info('Procesando posts programados...');
         Log::info('Comando posts:process-scheduled ejecutado desde consola');
-        
-        // Ejecutar el job inmediatamente (no en cola)
-        ProcessScheduledPosts::dispatchSync();
-        
+
+        // Resolver dependencia del servicio y pasarla al Job
+        $discordService = app(DiscordService::class);
+        ProcessScheduledPosts::dispatchSync($discordService);
+
         $this->info('Posts programados procesados exitosamente.');
-        
+
         return 0;
     }
 }

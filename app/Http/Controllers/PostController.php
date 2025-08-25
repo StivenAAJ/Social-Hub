@@ -8,14 +8,12 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use App\Services\DiscordService;
-
+use Inertia\Inertia;
 
 class PostController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
         //
@@ -26,103 +24,144 @@ class PostController extends Controller
         return inertia('Posts/Create');
     }
 
+    public function history()
+    {
+        $posts = Post::where('user_id', Auth::id())
+            ->whereNotNull('published_at')
+            ->orderByDesc('published_at')
+            ->get()
+            ->map(function ($post) {
+                $post->image_url = $post->image_path ? Storage::url($post->image_path) : null;
+                return $post;
+            });
+
+        return Inertia::render('Posts/History', [
+            'posts' => $posts
+        ]);
+    }
+
+    public function queue()
+    {
+        $posts = Post::where('user_id', Auth::id())
+            ->whereNull('published_at')
+            ->whereNotNull('scheduled_at')
+            ->orderBy('scheduled_at')
+            ->get()
+            ->map(function ($post) {
+                $post->image_url = $post->image_path ? Storage::url($post->image_path) : null;
+                return $post;
+            });
+
+        return Inertia::render('Posts/Queue', [
+            'posts' => $posts
+        ]);
+    }
+
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'content' => 'required|string|max:1000',
-            'image' => 'nullable|image|max:2048',
-            'scheduled_at' => 'nullable|date',
-            'publish_option' => 'required|in:immediately,queued,scheduled',
-            'platforms' => 'nullable|array',
-        ]);
+        try {
+            $validated = $request->validate([
+                'content' => 'required|string|max:1000',
+                'image' => 'nullable|image|max:2048',
+                'scheduled_at' => 'nullable|date',
+                'publish_option' => 'required|in:immediately,queued,scheduled',
+                'platforms' => 'nullable|array',
+            ]);
 
-        $post = new Post();
-        $post->user_id = Auth::id();
-        $post->content = $validated['content'];
+            $post = new Post();
+            $post->user_id = Auth::id();
+            $post->content = $validated['content'];
 
-        if ($request->hasFile('image')) {
-            $post->image_path = $request->file('image')->store('posts', 'public');
-        }
+            if ($request->hasFile('image')) {
+                $image = $request->file('image');
 
-        switch ($validated['publish_option']) {
-            case 'immediately':
-                $post->status = 'published';
-                $post->published_at = now();
-                $post->scheduled_at = null;
-                break;
-
-            case 'queued':
-                $post->status = 'queued';
-                $post->published_at = null;
-                $post->scheduled_at = null;
-                break;
-
-            case 'scheduled':
-                if (empty($validated['scheduled_at'])) {
-                    return back()->withErrors(['scheduled_at' => 'Please provide a scheduled date and time.'])->withInput();
+                if ($image->isValid()) {
+                    $path = $image->store('posts', 'public');
+                    $post->image_path = $path;
+                    Log::info("✅ Imagen almacenada correctamente en: storage/app/public/{$path}");
+                } else {
+                    Log::error("❌ La imagen no es válida o falló la validación de Laravel.");
+                    return back()->withErrors(['image' => 'La imagen no es válida.'])->withInput();
                 }
-                $post->status = 'scheduled';
-                $post->scheduled_at = Carbon::parse($validated['scheduled_at']);
-                $post->published_at = null;
-                break;
-        }
+            } else {
+                Log::info("ℹ️ No se subió ninguna imagen.");
+            }
 
-        $post->platforms = $validated['platforms'] ?? [];
-        $post->save();
+            switch ($validated['publish_option']) {
+                case 'immediately':
+                    $post->status = 'published';
+                    $post->published_at = now();
+                    $post->scheduled_at = null;
+                    break;
 
-        
-        if ($post->status === 'published') {
-            if (in_array('discord', $post->platforms)) {
-                $discordService = new DiscordService();
-                try {
-                    $discordService->publish(config('services.discord.channel_id'), $post->content);
-                } catch (\Exception $e) {
-                    \Log::error('Error publicando inmediatamente en Discord: ' . $e->getMessage());
+                case 'queued':
+                    $post->status = 'queued';
+                    $post->published_at = null;
+                    $post->scheduled_at = null;
+                    break;
+
+                case 'scheduled':
+                    if (empty($validated['scheduled_at'])) {
+                        return back()->withErrors(['scheduled_at' => 'Debes indicar fecha/hora para programar.'])->withInput();
+                    }
+                    $post->status = 'scheduled';
+                    $post->scheduled_at = Carbon::parse($validated['scheduled_at']);
+                    $post->published_at = null;
+                    break;
+            }
+
+            $post->platforms = $validated['platforms'] ?? [];
+            $post->save();
+
+            // Publicar si es inmediato
+            if ($post->status === 'published') {
+                if (in_array('discord', $post->platforms)) {
+                    try {
+                        $discordService = new DiscordService();
+                        $discordService->publish(config('services.discord.channel_id'), $post->content);
+                    } catch (\Exception $e) {
+                        Log::error("❌ Error publicando en Discord: " . $e->getMessage());
+                    }
+                }
+
+                if (in_array('mastodon', $post->platforms)) {
+                    try {
+                        $this->publishToMastodon($post->content);
+                    } catch (\Exception $e) {
+                        Log::error("❌ Error publicando en Mastodon: " . $e->getMessage());
+                    }
                 }
             }
 
-            if (in_array('mastodon', $post->platforms)) {
-                $this->publishToMastodon($post->content);
-            }
+            return redirect()->route('dashboard')->with('success', '✅ Publicación creada con éxito.');
+        } catch (\Exception $e) {
+            Log::error('❌ Error en store(): ' . $e->getMessage());
+            return back()->withErrors(['general' => 'Error al crear el post'])->withInput();
         }
-
-        return redirect()->route('dashboard')->with('success', 'Post created successfully.');
     }
+
 
 
     public function schedule()
     {
-        return inertia('Posts/Schedule');
+        return redirect()->route('publishing-schedules.index');
     }
 
-
-    /**
-     * Display the specified resource.
-     */
     public function show(Post $post)
     {
         //
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(Post $post)
     {
         //
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, Post $post)
     {
         //
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(Post $post)
     {
         //
@@ -155,7 +194,7 @@ class PostController extends Controller
         $response = Http::withToken($accessToken)
             ->post("$instanceUrl/api/v1/statuses", [
                 'status' => $message,
-                'visibility' => 'public', 
+                'visibility' => 'public',
             ]);
 
         if ($response->successful()) {
@@ -164,7 +203,7 @@ class PostController extends Controller
 
         Log::error('Error al publicar en Mastodon', [
             'status' => $response->status(),
-            'body' => $response->body(), 
+            'body' => $response->body(),
             'headers' => $response->headers(),
         ]);
 

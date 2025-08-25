@@ -1,10 +1,11 @@
 "use client"
 import { useForm } from "@inertiajs/react"
-import { ArrowLeft, Calendar, ImageIcon, Send, MessageSquare, Users, Plus } from "lucide-react"
+import { ArrowLeft, Calendar, ImageIcon, Send, MessageSquare, Users, Plus, X } from "lucide-react"
 import classNames from "classnames"
 import { route } from "ziggy-js"
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout"
 import { Head } from "@inertiajs/react"
+import { useState, useEffect } from "react"
 
 export default function Create() {
   const { data, setData, post, processing, errors } = useForm({
@@ -15,10 +16,29 @@ export default function Create() {
     platforms: [], // nuevo campo para las plataformas
   })
 
+  const [imagePreview, setImagePreview] = useState(null)
+
   function handleChange(e) {
     const key = e.target.name
     const value = key === "image" ? e.target.files[0] : e.target.value
     setData(key, value)
+
+    // Manejar preview de imagen
+    if (key === "image" && e.target.files[0]) {
+      const file = e.target.files[0]
+      const previewUrl = URL.createObjectURL(file)
+      setImagePreview(previewUrl)
+    }
+  }
+
+  function removeImage() {
+    setData("image", null)
+    setImagePreview(null)
+    // Limpiar el input file
+    const fileInput = document.getElementById("image")
+    if (fileInput) {
+      fileInput.value = ""
+    }
   }
 
   function handlePlatformChange(platform) {
@@ -39,8 +59,25 @@ export default function Create() {
 
   function submit(e) {
     e.preventDefault()
-    post(route("posts.store"))
+    post(route("posts.store"), {
+      forceFormData: true,
+      onSuccess: () => {
+        // Limpiar imagen y plataformas después de enviar
+        setData("image", null)
+        setData("platforms", [])
+        setImagePreview(null)
+      },
+    })
   }
+
+  // Limpiar URL del preview cuando el componente se desmonte
+  useEffect(() => {
+    return () => {
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview)
+      }
+    }
+  }, [imagePreview])
 
   return (
     <AuthenticatedLayout
@@ -71,6 +108,41 @@ export default function Create() {
             <ArrowLeft className="mr-3 h-6 w-6 group-hover:-translate-x-1 transition-transform" />
             <span className="text-lg font-medium">Atrás</span>
           </button>
+
+          {/* Botones de navegación rápida */}
+          <div className="mb-8 flex flex-col sm:flex-row gap-4">
+            <button
+              type="button"
+              onClick={() => (window.location.href = "/posts/queue")}
+              className="flex items-center justify-center space-x-3 px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span>Ver Cola de Publicaciones</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => (window.location.href = "/posts/history")}
+              className="flex items-center justify-center space-x-3 px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              <span>Ver Historial y Pendientes</span>
+            </button>
+          </div>
 
           {/* Formulario */}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-12">
@@ -218,6 +290,31 @@ export default function Create() {
                 <label htmlFor="image" className="block text-xl font-semibold mb-4 text-gray-800">
                   Imagen (opcional)
                 </label>
+
+                {/* Preview de imagen */}
+                {imagePreview && (
+                  <div className="mb-4 relative inline-block">
+                    <div className="relative bg-gray-100 rounded-xl p-4 border-2 border-dashed border-gray-300">
+                      <img
+                        src={imagePreview || "/placeholder.svg"}
+                        alt="Preview"
+                        className="max-w-full max-h-64 rounded-lg shadow-md object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={removeImage}
+                        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 shadow-lg transition-colors"
+                        title="Eliminar imagen"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-2 text-center">
+                      {data.image?.name} ({Math.round(data.image?.size / 1024)} KB)
+                    </p>
+                  </div>
+                )}
+
                 <div className="relative">
                   <input
                     type="file"

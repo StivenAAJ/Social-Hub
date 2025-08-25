@@ -9,44 +9,46 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+
 
 class ScheduleController extends Controller
 {
     public function index()
     {
         // Obtener horarios actuales del usuario organizados por día
-        $userSchedules = Schedule::where('user_id', auth()->id())
+        $userSchedules = Schedule::where('user_id', Auth::id())
             ->get()
             ->groupBy('day_of_week');
 
         // Formatear horarios para el frontend
         $schedules = [
-            'monday' => $userSchedules->get('monday', collect())->pluck('time')->map(function($time) {
+            'monday' => $userSchedules->get('monday', collect())->pluck('time')->map(function ($time) {
                 // Convertir HH:MM:SS a HH:MM para el frontend
                 return substr($time, 0, 5);
             })->toArray(),
-            'tuesday' => $userSchedules->get('tuesday', collect())->pluck('time')->map(function($time) {
+            'tuesday' => $userSchedules->get('tuesday', collect())->pluck('time')->map(function ($time) {
                 return substr($time, 0, 5);
             })->toArray(),
-            'wednesday' => $userSchedules->get('wednesday', collect())->pluck('time')->map(function($time) {
+            'wednesday' => $userSchedules->get('wednesday', collect())->pluck('time')->map(function ($time) {
                 return substr($time, 0, 5);
             })->toArray(),
-            'thursday' => $userSchedules->get('thursday', collect())->pluck('time')->map(function($time) {
+            'thursday' => $userSchedules->get('thursday', collect())->pluck('time')->map(function ($time) {
                 return substr($time, 0, 5);
             })->toArray(),
-            'friday' => $userSchedules->get('friday', collect())->pluck('time')->map(function($time) {
+            'friday' => $userSchedules->get('friday', collect())->pluck('time')->map(function ($time) {
                 return substr($time, 0, 5);
             })->toArray(),
-            'saturday' => $userSchedules->get('saturday', collect())->pluck('time')->map(function($time) {
+            'saturday' => $userSchedules->get('saturday', collect())->pluck('time')->map(function ($time) {
                 return substr($time, 0, 5);
             })->toArray(),
-            'sunday' => $userSchedules->get('sunday', collect())->pluck('time')->map(function($time) {
+            'sunday' => $userSchedules->get('sunday', collect())->pluck('time')->map(function ($time) {
                 return substr($time, 0, 5);
             })->toArray(),
         ];
 
-        return inertia('Posts/Schedule', [
-            'schedules' => $schedules
+        return Inertia::render('Posts/Schedule', [
+            'schedules' => $schedules,
         ]);
     }
 
@@ -71,12 +73,12 @@ class ScheduleController extends Controller
             // Validar cada horario individualmente
             $schedules = $request->input('schedules', []);
             $validSchedules = [];
-            
+
             foreach ($schedules as $day => $times) {
                 if (!is_array($times)) {
                     continue;
                 }
-                
+
                 $validTimes = [];
                 foreach ($times as $time) {
                     // Validar formato de tiempo con delimitadores correctos para preg_match
@@ -93,7 +95,7 @@ class ScheduleController extends Controller
             DB::beginTransaction();
 
             // Eliminar horarios existentes del usuario
-            Schedule::where('user_id', auth()->id())->delete();
+            Schedule::where('user_id', Auth::id())->delete();
 
             // Crear nuevos horarios
             $createdCount = 0;
@@ -103,7 +105,7 @@ class ScheduleController extends Controller
                     $timeFormatted = $time . ':00';
 
                     Schedule::create([
-                        'user_id' => auth()->id(),
+                        'user_id' => Auth::id(),
                         'day_of_week' => $dayOfWeek,
                         'time' => $timeFormatted,
                     ]);
@@ -114,23 +116,21 @@ class ScheduleController extends Controller
             }
 
             DB::commit();
-            
+
             Log::info("Horarios guardados exitosamente. Total creados: {$createdCount}");
-            
+
             return redirect()->route('publishing-schedules.index')
                 ->with('success', "Horarios de publicación guardados correctamente. Se crearon {$createdCount} horarios.");
-
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollback();
             Log::error('Error de validación: ' . json_encode($e->errors()));
-            
+
             return back()->withErrors($e->errors());
-            
         } catch (\Exception $e) {
             DB::rollback();
             Log::error('Error guardando horarios: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
-            
+
             return back()->withErrors([
                 'general' => 'Error guardando los horarios. Por favor, verifica que todos los horarios tengan un formato válido (HH:MM).'
             ]);
@@ -156,7 +156,7 @@ class ScheduleController extends Controller
             // Crear la fecha interpretando como Costa Rica timezone
             $scheduledDate = Carbon::createFromFormat('Y-m-d\TH:i', $receivedDateString, 'America/Costa_Rica');
             $now = Carbon::now('America/Costa_Rica');
-            
+
             Log::info('=== DEBUGGING ZONAS HORARIAS (COSTA RICA) ===');
             Log::info('Timezone configurada: America/Costa_Rica');
             Log::info('Input recibido: ' . $receivedDateString);
@@ -164,20 +164,20 @@ class ScheduleController extends Controller
             Log::info('Fecha programada (Costa Rica): ' . $scheduledDate->toDateTimeString());
             Log::info('Fecha actual (UTC): ' . $now->utc()->toDateTimeString());
             Log::info('Fecha programada (UTC): ' . $scheduledDate->utc()->toDateTimeString());
-            
+
             // Validación: la fecha programada debe ser futura
             if ($scheduledDate->lte($now)) {
                 Log::warning('Fecha programada no es futura');
-                
+
                 return back()->withErrors([
-                    'scheduled_at' => 'La fecha programada debe ser posterior al momento actual. (Ahora: ' . 
+                    'scheduled_at' => 'La fecha programada debe ser posterior al momento actual. (Ahora: ' .
                         $now->format('Y-m-d H:i:s') . ', Programada: ' . $scheduledDate->format('Y-m-d H:i:s') . ')'
                 ]);
             }
 
             $post = Post::findOrFail($validated['post_id']);
-            
-            if ($post->user_id !== auth()->id()) {
+
+            if ($post->user_id !== Auth::id()) {
                 return back()->withErrors(['post_id' => 'No tienes permiso para editar esta publicación']);
             }
 
@@ -195,11 +195,10 @@ class ScheduleController extends Controller
 
             Log::info('Post actualizado exitosamente');
             Log::info('Fecha guardada en BD (UTC): ' . $post->fresh()->scheduled_at);
-            
-            return redirect()->route('schedules.index')
-                ->with('success', 'Publicación programada correctamente para ' . 
-                    $scheduledDate->format('d/m/Y H:i') . ' (hora de Costa Rica)');
 
+            return redirect()->route('schedules.index')
+                ->with('success', 'Publicación programada correctamente para ' .
+                    $scheduledDate->format('d/m/Y H:i') . ' (hora de Costa Rica)');
         } catch (\Exception $e) {
             Log::error('Error en assignSchedule: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
@@ -209,7 +208,7 @@ class ScheduleController extends Controller
 
     public function unassignPost(Post $post)
     {
-        if ($post->user_id !== auth()->id()) {
+        if ($post->user_id !== Auth::id()) {
             abort(403);
         }
 
@@ -224,22 +223,22 @@ class ScheduleController extends Controller
 
     public function updatePostStatus(Post $post, Request $request)
     {
-        if ($post->user_id !== auth()->id()) {
+        if ($post->user_id !== Auth::id()) {
             abort(403);
         }
-        
+
         $validated = $request->validate([
             'status' => 'required|in:queued,scheduled,published'
         ]);
 
         $updateData = ['status' => $validated['status']];
-        
+
         if ($validated['status'] === 'queued') {
             $updateData['scheduled_at'] = null;
         }
 
         $post->update($updateData);
-        
+
         return redirect()->route('schedules.index')
             ->with('success', 'Estado actualizado correctamente');
     }
@@ -247,11 +246,11 @@ class ScheduleController extends Controller
     // Método adicional para obtener estadísticas
     public function getStats()
     {
-        $totalSchedules = Schedule::where('user_id', auth()->id())->count();
-        $activeDays = Schedule::where('user_id', auth()->id())
+        $totalSchedules = Schedule::where('user_id', Auth::id())->count();
+        $activeDays = Schedule::where('user_id', Auth::id())
             ->distinct('day_of_week')
             ->count();
-        
+
         $averagePerDay = $totalSchedules > 0 ? round($totalSchedules / 7, 1) : 0;
 
         return response()->json([

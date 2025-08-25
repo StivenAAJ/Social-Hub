@@ -29,10 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->withoutOverlapping()
                 ->runInBackground();
                 
-        // También puedes usar el Job directamente:
-        // $schedule->job(new \App\Jobs\ProcessScheduledPosts)
-        //         ->everyMinute()
-        //         ->withoutOverlapping();
+        
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
