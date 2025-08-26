@@ -14,10 +14,7 @@ use Inertia\Inertia;
 
 class PostController extends Controller
 {
-    public function index()
-    {
-        //
-    }
+    public function index() {}
 
     public function create()
     {
@@ -71,7 +68,7 @@ class PostController extends Controller
         $post->user_id = Auth::id();
         $post->content = $validated['content'];
 
-        // Manejo de imagen con logs y validaciones
+        // Imagen
         if ($request->hasFile('image')) {
             try {
                 $image = $request->file('image');
@@ -92,7 +89,7 @@ class PostController extends Controller
             Log::info('ℹ️ No se adjuntó imagen en el request');
         }
 
-        // Determinar estado del post según opción
+        // Estado
         switch ($validated['publish_option']) {
             case 'immediately':
                 $post->status = 'published';
@@ -121,13 +118,48 @@ class PostController extends Controller
 
         Log::info("✅ Post creado con estado [{$post->status}] por el usuario ID: {$post->user_id}");
 
-        // Si se publica inmediatamente, enviar a plataformas
+        // Publicar inmediatamente
         if ($post->status === 'published') {
+            $imageUrl = $post->image_path ? asset('storage/' . $post->image_path) : null;
+
             if (in_array('discord', $post->platforms)) {
                 try {
-                    $discordService = new DiscordService();
-                    $discordService->publish(config('services.discord.channel_id'), $post->content);
-                    Log::info("📤 Publicado en Discord");
+                    $discordToken = 'Bot ' . config('services.discord.bot_token'); // ✅ Agregado "Bot " aquí
+                    $channelId = config('services.discord.channel_id');
+
+                    $payload = ['content' => $post->content];
+
+                    if ($post->image_path) {
+                        $imageFullPath = storage_path('app/public/' . $post->image_path);
+
+                        if (!file_exists($imageFullPath)) {
+                            Log::error("🛑 No se encontró la imagen en la ruta: {$imageFullPath}");
+                        } else {
+                            $response = Http::withHeaders([
+                                'Authorization' => $discordToken,
+                            ])->attach(
+                                'file',
+                                file_get_contents($imageFullPath),
+                                basename($imageFullPath)
+                            )->post("https://discord.com/api/v10/channels/{$channelId}/messages", [
+                                'content' => $post->content
+                            ]);
+                        }
+                    } else {
+                        Log::info("ℹ️ Post sin imagen, publicando solo texto en Discord");
+                        $response = Http::withHeaders([
+                            'Authorization' => $discordToken,
+                            'Content-Type' => 'application/json',
+                        ])->post("https://discord.com/api/v10/channels/{$channelId}/messages", [
+                            'content' => $post->content
+                        ]);
+                    }
+
+                    if (!$response->successful()) {
+                        Log::error('❌ Error al publicar en Discord: ' . $response->body());
+                    } else {
+                        Log::info("📤 Publicado en Discord correctamente");
+                    }
                 } catch (\Exception $e) {
                     Log::error('Error publicando en Discord: ' . $e->getMessage());
                 }
@@ -135,8 +167,8 @@ class PostController extends Controller
 
             if (in_array('mastodon', $post->platforms)) {
                 try {
-                    $this->publishToMastodon($post->content);
-                    Log::info("📤 Publicado en Mastodon");
+                    $this->publishToMastodon($post->content, $post->image_path);
+                    Log::info("📤 Publicado en Mastodon correctamente");
                 } catch (\Exception $e) {
                     Log::error('Error publicando en Mastodon: ' . $e->getMessage());
                 }
@@ -146,79 +178,55 @@ class PostController extends Controller
         return redirect()->route('dashboard')->with('success', 'Post creado exitosamente.');
     }
 
-
-
     public function schedule()
     {
         return redirect()->route('publishing-schedules.index');
     }
 
-    public function show(Post $post)
-    {
-        //
-    }
-
-    public function edit(Post $post)
-    {
-        //
-    }
-
-    public function update(Request $request, Post $post)
-    {
-        //
-    }
-
-    public function destroy(Post $post)
-    {
-        //
-    }
-
-    public function postToDiscord($content)
-    {
-        $discordToken = config('services.discord.bot_token');
-        $channelId = config('services.discord.channel_id');
-
-        $response = Http::withHeaders([
-            'Authorization' => $discordToken,
-            'Content-Type' => 'application/json',
-        ])->post("https://discord.com/api/v10/channels/{$channelId}/messages", [
-            'content' => $content,
-        ]);
-
-        if (!$response->successful()) {
-            Log::error('Discord post failed: ' . $response->body());
-        }
-
-        return $response->successful();
-    }
-
-    public function publishToMastodon(string $message)
+    public function publishToMastodon(string $message, ?string $imagePath = null)
     {
         $accessToken = config('services.mastodon.access_token');
         $instanceUrl = config('services.mastodon.instance');
 
-        $response = Http::withToken($accessToken)
-            ->post("$instanceUrl/api/v1/statuses", [
+        try {
+            $mediaId = null;
+
+            if ($imagePath) {
+                $filePath = storage_path('app/public/' . $imagePath);
+                $mediaResponse = Http::withToken($accessToken)
+                    ->attach('file', file_get_contents($filePath), basename($filePath))
+                    ->post("$instanceUrl/api/v2/media");
+
+                if (!$mediaResponse->successful()) {
+                    throw new \Exception('Error al subir imagen a Mastodon: ' . $mediaResponse->body());
+                }
+
+                $mediaId = $mediaResponse->json()['id'];
+            }
+
+            $postPayload = [
                 'status' => $message,
                 'visibility' => 'public',
-            ]);
+            ];
 
-        if ($response->successful()) {
-            return $response->json();
+            if ($mediaId) {
+                $postPayload['media_ids'] = [$mediaId];
+            }
+
+            $response = Http::withToken($accessToken)
+                ->post("$instanceUrl/api/v1/statuses", $postPayload);
+
+            if (!$response->successful()) {
+                throw new \Exception('Error al publicar en Mastodon: ' . $response->body());
+            }
+        } catch (\Exception $e) {
+            Log::error('Error general en publishToMastodon: ' . $e->getMessage());
+            throw $e;
         }
-
-        Log::error('Error al publicar en Mastodon', [
-            'status' => $response->status(),
-            'body' => $response->body(),
-            'headers' => $response->headers(),
-        ]);
-
-        throw new \Exception('No se pudo publicar en Mastodon');
     }
 
     public function publishedAndScheduled()
     {
-        // 📌 Publicados
         $publishedPosts = Post::where('user_id', Auth::id())
             ->where('status', 'published')
             ->orderByDesc('published_at')
@@ -228,7 +236,6 @@ class PostController extends Controller
                 return $post;
             });
 
-        // 📌 Programados
         $scheduledPosts = Post::where('user_id', Auth::id())
             ->where('status', 'scheduled')
             ->orderBy('scheduled_at')
@@ -246,7 +253,6 @@ class PostController extends Controller
 
     public function queued()
     {
-        // 📌 En cola
         $queuedPosts = Post::where('user_id', Auth::id())
             ->where('status', 'queued')
             ->orderBy('created_at')
@@ -260,6 +266,4 @@ class PostController extends Controller
             'queuedPosts' => $queuedPosts,
         ]);
     }
-
-
 }
