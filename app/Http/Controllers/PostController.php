@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use App\Services\DiscordService;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class PostController extends Controller
@@ -68,7 +68,6 @@ class PostController extends Controller
         $post->user_id = Auth::id();
         $post->content = $validated['content'];
 
-        // Imagen
         if ($request->hasFile('image')) {
             try {
                 $image = $request->file('image');
@@ -89,27 +88,26 @@ class PostController extends Controller
             Log::info('ℹ️ No se adjuntó imagen en el request');
         }
 
-        // Estado
+        // Estado y publicación inmediata
+        $publishNow = false;
+
         switch ($validated['publish_option']) {
             case 'immediately':
                 $post->status = 'published';
                 $post->published_at = now();
-                $post->scheduled_at = null;
+                $publishNow = true;
                 break;
 
             case 'queued':
                 $post->status = 'queued';
-                $post->published_at = null;
-                $post->scheduled_at = null;
                 break;
 
             case 'scheduled':
                 if (empty($validated['scheduled_at'])) {
-                    return back()->withErrors(['scheduled_at' => 'Please provide a scheduled date and time.'])->withInput();
+                    return back()->withErrors(['scheduled_at' => 'Fecha programada requerida'])->withInput();
                 }
                 $post->status = 'scheduled';
                 $post->scheduled_at = Carbon::parse($validated['scheduled_at']);
-                $post->published_at = null;
                 break;
         }
 
@@ -118,112 +116,112 @@ class PostController extends Controller
 
         Log::info("✅ Post creado con estado [{$post->status}] por el usuario ID: {$post->user_id}");
 
-        // Publicar inmediatamente
-        if ($post->status === 'published') {
-            $imageUrl = $post->image_path ? asset('storage/' . $post->image_path) : null;
-
-            if (in_array('discord', $post->platforms)) {
-                try {
-                    $discordToken = 'Bot ' . config('services.discord.bot_token'); // ✅ Agregado "Bot " aquí
-                    $channelId = config('services.discord.channel_id');
-
-                    $payload = ['content' => $post->content];
-
-                    if ($post->image_path) {
-                        $imageFullPath = storage_path('app/public/' . $post->image_path);
-
-                        if (!file_exists($imageFullPath)) {
-                            Log::error("🛑 No se encontró la imagen en la ruta: {$imageFullPath}");
-                        } else {
-                            $response = Http::withHeaders([
-                                'Authorization' => $discordToken,
-                            ])->attach(
-                                'file',
-                                file_get_contents($imageFullPath),
-                                basename($imageFullPath)
-                            )->post("https://discord.com/api/v10/channels/{$channelId}/messages", [
-                                'content' => $post->content
-                            ]);
-                        }
-                    } else {
-                        Log::info("ℹ️ Post sin imagen, publicando solo texto en Discord");
-                        $response = Http::withHeaders([
-                            'Authorization' => $discordToken,
-                            'Content-Type' => 'application/json',
-                        ])->post("https://discord.com/api/v10/channels/{$channelId}/messages", [
-                            'content' => $post->content
-                        ]);
-                    }
-
-                    if (!$response->successful()) {
-                        Log::error('❌ Error al publicar en Discord: ' . $response->body());
-                    } else {
-                        Log::info("📤 Publicado en Discord correctamente");
-                    }
-                } catch (\Exception $e) {
-                    Log::error('Error publicando en Discord: ' . $e->getMessage());
-                }
-            }
-
-            if (in_array('mastodon', $post->platforms)) {
-                try {
-                    $this->publishToMastodon($post->content, $post->image_path);
-                    Log::info("📤 Publicado en Mastodon correctamente");
-                } catch (\Exception $e) {
-                    Log::error('Error publicando en Mastodon: ' . $e->getMessage());
-                }
-            }
+        // Publicar si es inmediato
+        if ($publishNow) {
+            $this->publicarEnPlataformas($post);
         }
 
         return redirect()->route('dashboard')->with('success', 'Post creado exitosamente.');
     }
+
+    public function publicarEnPlataformas(Post $post)
+    {
+        if (in_array('discord', $post->platforms)) {
+            try {
+                $this->publishToDiscord($post);
+                Log::info("📤 Publicado en Discord correctamente");
+            } catch (\Exception $e) {
+                Log::error('❌ Error publicando en Discord: ' . $e->getMessage());
+            }
+        }
+
+        if (in_array('mastodon', $post->platforms)) {
+            try {
+                $this->publishToMastodon($post->content, $post->image_path);
+                Log::info("📤 Publicado en Mastodon correctamente");
+            } catch (\Exception $e) {
+                Log::error('❌ Error publicando en Mastodon: ' . $e->getMessage());
+            }
+        }
+    }
+
 
     public function schedule()
     {
         return redirect()->route('publishing-schedules.index');
     }
 
-    public function publishToMastodon(string $message, ?string $imagePath = null)
+     public function publishToDiscord(Post $post)
+    {
+        $token = config('services.discord.bot_token');
+        $channelId = config('services.discord.channel_id');
+        $discordToken = Str::startsWith($token, 'Bot ') ? $token : 'Bot ' . $token;
+
+        $imageFullPath = $post->image_path ? storage_path('app/public/' . $post->image_path) : null;
+
+        if ($imageFullPath && file_exists($imageFullPath)) {
+            $response = Http::withHeaders([
+                'Authorization' => $discordToken,
+            ])->attach(
+                'file',
+                file_get_contents($imageFullPath),
+                basename($imageFullPath)
+            )->post("https://discord.com/api/v10/channels/{$channelId}/messages", [
+                'content' => $post->content,
+            ]);
+        } else {
+            $response = Http::withHeaders([
+                'Authorization' => $discordToken,
+                'Content-Type' => 'application/json',
+            ])->post("https://discord.com/api/v10/channels/{$channelId}/messages", [
+                'content' => $post->content,
+            ]);
+        }
+
+        if (!$response->successful()) {
+            throw new \Exception($response->body());
+        }
+    }
+
+     public function publishToMastodon(string $message, ?string $imagePath = null)
     {
         $accessToken = config('services.mastodon.access_token');
         $instanceUrl = config('services.mastodon.instance');
+        $mediaId = null;
 
-        try {
-            $mediaId = null;
+        if ($imagePath) {
+            $filePath = storage_path('app/public/' . $imagePath);
+            $mediaResponse = Http::withToken($accessToken)
+                ->attach('file', file_get_contents($filePath), basename($filePath))
+                ->post("$instanceUrl/api/v2/media");
 
-            if ($imagePath) {
-                $filePath = storage_path('app/public/' . $imagePath);
-                $mediaResponse = Http::withToken($accessToken)
-                    ->attach('file', file_get_contents($filePath), basename($filePath))
-                    ->post("$instanceUrl/api/v2/media");
-
-                if (!$mediaResponse->successful()) {
-                    throw new \Exception('Error al subir imagen a Mastodon: ' . $mediaResponse->body());
-                }
-
-                $mediaId = $mediaResponse->json()['id'];
+            if (!$mediaResponse->successful()) {
+                throw new \Exception('Error al subir imagen a Mastodon: ' . $mediaResponse->body());
             }
 
-            $postPayload = [
-                'status' => $message,
-                'visibility' => 'public',
-            ];
+            $mediaId = $mediaResponse->json()['id'];
+        }
 
-            if ($mediaId) {
-                $postPayload['media_ids'] = [$mediaId];
-            }
+        $payload = [
+            'status' => $message,
+            'visibility' => 'public',
+        ];
 
-            $response = Http::withToken($accessToken)
-                ->post("$instanceUrl/api/v1/statuses", $postPayload);
+        if ($mediaId) {
+            $payload['media_ids'] = [$mediaId];
+        }
 
-            if (!$response->successful()) {
-                throw new \Exception('Error al publicar en Mastodon: ' . $response->body());
-            }
-        } catch (\Exception $e) {
-            Log::error('Error general en publishToMastodon: ' . $e->getMessage());
-            throw $e;
+        $response = Http::withToken($accessToken)
+            ->post("$instanceUrl/api/v1/statuses", $payload);
+
+        if (!$response->successful()) {
+            throw new \Exception('Error al publicar en Mastodon: ' . $response->body());
         }
     }
+
+
+
+
 
     public function publishedAndScheduled()
     {
