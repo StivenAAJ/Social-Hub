@@ -215,4 +215,51 @@ class PostController extends Controller
 
         throw new \Exception('No se pudo publicar en Mastodon');
     }
+
+    public function publishedAndScheduled()
+    {
+        // 📌 Publicados
+        $publishedPosts = Post::where('user_id', Auth::id())
+            ->where('status', 'published')
+            ->orderByDesc('published_at')
+            ->get()
+            ->map(function ($post) {
+                $post->image_url = $post->image_path ? Storage::url($post->image_path) : null;
+                return $post;
+            });
+
+        // 📌 Programados
+        $scheduledPosts = Post::where('user_id', Auth::id())
+            ->where('status', 'scheduled')
+            ->orderBy('scheduled_at')
+            ->get()
+            ->map(function ($post) {
+                $post->image_url = $post->image_path ? Storage::url($post->image_path) : null;
+                return $post;
+            });
+
+        return Inertia::render('Posts/History', [
+            'publishedPosts' => $publishedPosts,
+            'scheduledPosts' => $scheduledPosts,
+        ]);
+    }
+
+    public function queued()
+    {
+        // 📌 En cola
+        $queuedPosts = Post::where('user_id', Auth::id())
+            ->where('status', 'queued')
+            ->orderBy('created_at')
+            ->get()
+            ->map(function ($post) {
+                $post->image_url = $post->image_path ? Storage::url($post->image_path) : null;
+                return $post;
+            });
+
+        return Inertia::render('Posts/Queue', [
+            'queuedPosts' => $queuedPosts,
+        ]);
+    }
+
+
 }

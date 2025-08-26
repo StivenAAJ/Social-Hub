@@ -1,68 +1,10 @@
 "use client"
-import { useState } from "react"
 import { Head } from "@inertiajs/react"
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout"
 import { Clock, MessageSquare, Users, Edit, Trash2, Play, Plus, ArrowUp, ArrowDown, ArrowLeft } from "lucide-react"
 import classNames from "classnames"
 
-export default function QueuePage() {
-  // Datos de ejemplo para publicaciones en cola
-  const [queuedPosts, setQueuedPosts] = useState([
-    {
-      id: 1,
-      content: "¡Nuevo tutorial sobre React Hooks! 🚀 Aprende a usar useState y useEffect de manera efectiva.",
-      platforms: ["discord", "mastodon"],
-      status: "queued",
-      created_at: "2024-01-15T10:30:00",
-      queue_position: 1,
-      estimated_publish_time: "2024-01-16T09:00:00",
-    },
-    {
-      id: 2,
-      content: "Recordatorio: Webinar gratuito sobre Next.js 14 📚 ¡No te lo pierdas!",
-      platforms: ["discord"],
-      status: "queued",
-      created_at: "2024-01-15T11:15:00",
-      queue_position: 2,
-      estimated_publish_time: "2024-01-16T12:00:00",
-    },
-    {
-      id: 3,
-      content: "¿Cuál es tu editor de código favorito? Cuéntanos en los comentarios 💭",
-      platforms: ["mastodon"],
-      status: "queued",
-      created_at: "2024-01-15T12:00:00",
-      queue_position: 3,
-      estimated_publish_time: "2024-01-16T15:00:00",
-    },
-    {
-      id: 4,
-      content: "Tips para optimizar el rendimiento de tu aplicación React ⚡",
-      platforms: ["discord", "mastodon"],
-      status: "queued",
-      created_at: "2024-01-15T13:30:00",
-      queue_position: 4,
-      estimated_publish_time: "2024-01-16T18:00:00",
-    },
-    {
-      id: 5,
-      content: "Nuevo artículo: Mejores prácticas para el manejo de estado en aplicaciones grandes 📖",
-      platforms: ["discord"],
-      status: "queued",
-      created_at: "2024-01-15T14:45:00",
-      queue_position: 5,
-      estimated_publish_time: "2024-01-17T09:00:00",
-    },
-    {
-      id: 6,
-      content: "¡Feliz viernes desarrolladores! 🎉 ¿En qué proyectos están trabajando este fin de semana?",
-      platforms: ["mastodon"],
-      status: "queued",
-      created_at: "2024-01-15T15:20:00",
-      queue_position: 6,
-      estimated_publish_time: "2024-01-17T17:00:00",
-    },
-  ])
+export default function QueuePage({ queuedPosts }) {
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString("es-ES", {
@@ -102,48 +44,22 @@ export default function QueuePage() {
 
   const handleDelete = (postId) => {
     if (confirm("¿Estás seguro de que quieres eliminar esta publicación de la cola?")) {
-      setQueuedPosts(queuedPosts.filter((post) => post.id !== postId))
-      console.log(`Deleting post ${postId}`)
+      window.location.href = `/posts/${postId}/delete`
     }
   }
 
   const handlePublishNow = (postId) => {
     if (confirm("¿Quieres publicar esta entrada ahora mismo? Se eliminará de la cola.")) {
-      setQueuedPosts(queuedPosts.filter((post) => post.id !== postId))
-      console.log(`Publishing post ${postId} now`)
+      window.location.href = `/posts/${postId}/publish-now`
     }
   }
 
   const handleMoveUp = (postId) => {
-    const postIndex = queuedPosts.findIndex((post) => post.id === postId)
-    if (postIndex > 0) {
-      const newPosts = [...queuedPosts]
-      const temp = newPosts[postIndex]
-      newPosts[postIndex] = newPosts[postIndex - 1]
-      newPosts[postIndex - 1] = temp
-
-      // Actualizar posiciones
-      newPosts[postIndex].queue_position = postIndex + 1
-      newPosts[postIndex - 1].queue_position = postIndex
-
-      setQueuedPosts(newPosts)
-    }
+    window.location.href = `/posts/${postId}/move-up`
   }
 
   const handleMoveDown = (postId) => {
-    const postIndex = queuedPosts.findIndex((post) => post.id === postId)
-    if (postIndex < queuedPosts.length - 1) {
-      const newPosts = [...queuedPosts]
-      const temp = newPosts[postIndex]
-      newPosts[postIndex] = newPosts[postIndex + 1]
-      newPosts[postIndex + 1] = temp
-
-      // Actualizar posiciones
-      newPosts[postIndex].queue_position = postIndex + 1
-      newPosts[postIndex + 1].queue_position = postIndex + 2
-
-      setQueuedPosts(newPosts)
-    }
+    window.location.href = `/posts/${postId}/move-down`
   }
 
   const getTimeUntilPublish = (estimatedTime) => {
@@ -181,7 +97,6 @@ export default function QueuePage() {
       <Head title="Cola de Publicaciones" />
 
       <div className="py-12">
-        {/* Botón de regreso */}
         <button
           type="button"
           onClick={() => window.history.back()}
@@ -318,15 +233,14 @@ export default function QueuePage() {
                               )}
                               <span className="text-sm text-gray-600">Posición en cola</span>
                             </div>
-                            <p className="text-sm text-gray-600">Estimado: {formatDate(post.estimated_publish_time)}</p>
+                            <p className="text-sm text-gray-600">Estimado: {formatDate(post.scheduled_at)}</p>
                             <p className="text-xs text-amber-600 font-medium">
-                              {getTimeUntilPublish(post.estimated_publish_time)}
+                              {getTimeUntilPublish(post.scheduled_at)}
                             </p>
                           </div>
                         </div>
 
                         <div className="flex items-center space-x-1">
-                          {/* Botones de reordenar */}
                           <button
                             onClick={() => handleMoveUp(post.id)}
                             disabled={index === 0}
@@ -352,7 +266,6 @@ export default function QueuePage() {
                             <ArrowDown className="w-4 h-4" />
                           </button>
 
-                          {/* Botones de acción */}
                           <button
                             onClick={() => handlePublishNow(post.id)}
                             className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
@@ -438,14 +351,12 @@ export default function QueuePage() {
             </div>
           </div>
 
-          {/* Botón para crear nueva publicación */}
           <div className="mt-8 text-center">
             <button
               onClick={() => (window.location.href = "/posts/create")}
-              className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-semibold px-8 py-4 rounded-xl transition-all duration-200 flex items-center space-x-3 mx-auto shadow-lg hover:shadow-xl"
+              className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-200"
             >
-              <Plus className="w-6 h-6" />
-              <span className="text-lg">Agregar Nueva Publicación a la Cola</span>
+              Agregar Nueva Publicación
             </button>
           </div>
         </div>
